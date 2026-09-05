@@ -165,18 +165,19 @@ chatSocket(server);
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  console.log(
-    `
-    =========================================
-    🚀 Server running in ${process.env.NODE_ENV} mode
-    🌐 Port: ${PORT}
-    🏠 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}
-    ✅ Database & Security: Verified
-    =========================================
-    `.yellow.bold
-  );
-});
+// --- ৬. সার্ভার লিসেনিং (Start Server) ---
+
+const PORT = process.env.PORT || 5000;
+
+// Vercel Serverless Environment-এর বাইরে স্থানীয়ভাবে চলার জন্য
+if (process.env.NODE_ENV !== 'production') {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`.yellow.bold);
+  });
+}
+
+// Vercel Serverless Export (এটি অবশ্যই থাকতে হবে)
+module.exports = app;
 
 // প্রোসেস আনহ্যান্ডেলড রিজেকশন (যেমন ডাটাবেস এরর)
 process.on('unhandledRejection', (err, promise) => {
