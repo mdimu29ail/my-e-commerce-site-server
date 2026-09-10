@@ -1,28 +1,41 @@
 const mongoose = require('mongoose');
 
+// ─── Connection Cache for Serverless ────────────────────────────────────────
+// In serverless environments (like Vercel), the function container can be reused.
+// We cache the connection to prevent multiple initializations and "buffering timed out" errors.
+let cachedConnection = null;
+
 const connectDB = async () => {
-  // ─── Validate MONGO_URI before attempting connection ───────────────────────
-  // On Vercel, env vars come from the Dashboard (Settings → Environment Variables).
-  // If MONGO_URI is missing, this gives a clear, actionable error instead of the
-  // cryptic Mongoose "got undefined" crash.
+  // If a connection already exists and is ready, use it.
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
   if (!process.env.MONGO_URI) {
-    console.error(
-      '❌ FATAL: MONGO_URI environment variable is not set.\n' +
-        '   → In production (Vercel): go to Project → Settings → Environment Variables and add MONGO_URI.\n' +
-        '   → In development: add MONGO_URI to your server/.env file.'
-    );
-    // In serverless (Vercel) we must NOT call process.exit() — it kills the
-    // function without sending a response. Throw instead so the caller gets a
-    // proper 500 with a meaningful message.
+    console.error('❌ FATAL: MONGO_URI environment variable is not set.');
     throw new Error('MONGO_URI environment variable is not defined');
   }
 
+  // If a connection is currently being established, wait for it.
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const options = {
+      // These options help with stability in serverless environments
+      bufferCommands: false, // Disable buffering to fail fast if connection is lost
+    };
+
+    console.log('⏳ Connecting to MongoDB...');
+    cachedConnection = mongoose.connect(process.env.MONGO_URI, options);
+    
+    const conn = await cachedConnection;
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    return conn;
   } catch (error) {
     console.error(`❌ MongoDB connection error: ${error.message}`);
-    // Re-throw so the serverless function returns a 500 rather than hanging
+    cachedConnection = null; // Reset cache on failure so next request can retry
     throw error;
   }
 };

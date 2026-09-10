@@ -5,10 +5,12 @@ const generateToken = (res, userId) => {
     expiresIn: '30d',
   });
 
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
   res.cookie('jwt', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
-    sameSite: 'lax', // Changed from 'strict' to 'lax' for better cross-port support
+    secure: isProduction, // Must be true for SameSite=None
+    sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site support
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 };

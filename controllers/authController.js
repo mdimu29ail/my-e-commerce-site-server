@@ -1,21 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-
-/**
- * @description JWT টোকেন তৈরি এবং কুকি সেট করার ফাংশন
- */
-const generateToken = (res, userId) => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
-
-  res.cookie('jwt', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-  });
-};
+const generateToken = require('../utils/generateToken');
 
 // @desc    ইউজার রেজিস্ট্রেশন
 exports.registerUser = async (req, res, next) => {
@@ -40,27 +25,19 @@ exports.registerUser = async (req, res, next) => {
       role,
     });
 
-    // ৩. টোকেন জেনারেট করা
-    const token = user.getSignedJwtToken();
+    // ৩. টোকেন জেনারেট করা এবং কুকি সেট করা
+    generateToken(res, user._id);
 
-    // ৪. কুকিতে টোকেন সেট করে রেসপন্স পাঠানো
-    res
-      .status(201)
-      .cookie('jwt', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Days
-      })
-      .json({
-        success: true,
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
+    // ৪. রেসপন্স পাঠানো
+    res.status(201).json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   } catch (error) {
     // 💥 টার্মিনালে সঠিক এররটি প্রিন্ট করার জন্য:
     console.error('🔴 REGISTRATION ERROR: ', error.message);
